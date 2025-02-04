@@ -7,6 +7,8 @@ import pickle
 import networkx as nx  ## new
 import math  ##new
 
+from settings import max_num_object
+
 # Please change this to your location
 # data_root = '/data/xincoder/ApolloScape/'
 data_root = 'dataset/'
@@ -15,7 +17,6 @@ history_frames = 6  # 3 second * 2 frame/second
 future_frames = 6  # 3 second * 2 frame/second
 total_frames = history_frames + future_frames
 # xy_range = 120 # max_x_range=121, max_y_range=118
-max_num_object = 120  # maximum number of observed objects is 70
 neighbor_distance = 10  # meter
 
 # Baidu ApolloScape data format:

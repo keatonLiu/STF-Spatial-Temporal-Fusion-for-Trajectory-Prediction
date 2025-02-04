@@ -7,7 +7,8 @@ import torch
 import torch.optim as optim
 
 from model import Model
-from xin_feeder_baidu import Feeder
+from settings import max_num_object
+from xin_feeder_baidu import DataSet
 
 ###############the code is mainly from https://github.com/xincoder/GRIP/tree/master
 CUDA_VISIBLE_DEVICES = '0'
@@ -44,8 +45,8 @@ max_y = 1.
 history_frames = 6  # 3 second * 2 frame/second
 future_frames = 6  # 3 second * 2 frame/second
 
-batch_size_train = 256  ##64
-batch_size_val = 128  ##32
+batch_size_train = 64  ##64
+batch_size_val = 64  ##32
 batch_size_test = 1
 # total_epoch = 3################################################################epoch################################
 # total_epoch = 50
@@ -115,9 +116,9 @@ def my_load_model(pra_model, pra_path):
 
 
 def data_loader(pra_path, pra_batch_size=128, pra_shuffle=False, pra_drop_last=False, train_val_test='train'):
-    feeder = Feeder(data_path=pra_path, graph_args=graph_args, train_val_test=train_val_test)
+    dataset = DataSet(data_path=pra_path, graph_args=graph_args, train_val_test=train_val_test)
     loader = torch.utils.data.DataLoader(
-        dataset=feeder,
+        dataset=dataset,
         batch_size=pra_batch_size,
         shuffle=pra_shuffle,
         drop_last=pra_drop_last,
@@ -167,7 +168,7 @@ def compute_RMSE(pra_pred, pra_GT, pra_mask, pra_error_order=2):
 ###########(N,T)############(N,T)########(N,T,V)######
 ###########T=(11,10,...,1)when train###############################
 
-def train_model(pra_model, pra_data_loader, pra_optimizer, pra_epoch_log):
+def train_model(pra_model: Model, pra_data_loader, pra_optimizer, pra_epoch_log):
     # pra_model.to(dev)
 
     pra_model.train()
@@ -177,8 +178,8 @@ def train_model(pra_model, pra_data_loader, pra_optimizer, pra_epoch_log):
 
     # train model using training data
     for iteration, (ori_data, A, A_big, _) in enumerate(pra_data_loader):
-        # print(iteration, ori_data.shape, A.shape)
-        # print('iteration{}, ori_data.shape:{}, A.shape:{}'.format(iteration, ori_data.shape, A.shape))
+        print(iteration, ori_data.shape, A.shape)
+        print('iteration{}, ori_data.shape:{}, A.shape:{}'.format(iteration, ori_data.shape, A.shape))
         # ori_data.shape:torch.Size([64, 11, 12, 120]), A.shape:torch.Size([64, 3(max_hop=2), 120, 120])(note:graph_args={'max_hop':2, 'num_node':120})
 
         # ori_data: (N, C, T, V)
@@ -400,12 +401,12 @@ def test_model(pra_model, pra_data_loader):
                         writer.write(result)
 
 
-def run_trainval(pra_model, pra_traindata_path, pra_testdata_path):
+def run_trainval(pra_model: Model, pra_traindata_path, pra_testdata_path):
     # print('loader_train')
     ##Total number: 5010 in Feeder
     loader_train = data_loader(pra_traindata_path, pra_batch_size=batch_size_train, pra_shuffle=True,
-                               pra_drop_last=True, train_val_test='train')
-    # print('loader_train shape:', loader_train.__len__())  ##
+                               pra_drop_last=False, train_val_test='train')
+    print('loader_train shape:', len(loader_train))  ##
 
     # print('loader_test')
     ## Total number: 415 in Feeder
@@ -455,7 +456,7 @@ def run_test(pra_model, pra_data_path):
 
 
 if __name__ == '__main__':
-    graph_args = {'max_hop': 2, 'num_node': 120}
+    graph_args = {'max_hop': 2, 'num_node': max_num_object}
     model = Model(in_channels=4, graph_args=graph_args, edge_importance_weighting=True)
     model.to(dev)
 

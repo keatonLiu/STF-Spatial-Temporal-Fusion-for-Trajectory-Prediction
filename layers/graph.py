@@ -1,5 +1,7 @@
 import numpy as np
 
+from data_process import max_num_object
+
 
 class Graph:
     """ The Graph Representation
@@ -11,7 +13,7 @@ class Graph:
     """
 
     def __init__(self,
-                 num_node=120,
+                 num_node=max_num_object,
                  max_hop=1
                  ):
         self.max_hop = max_hop

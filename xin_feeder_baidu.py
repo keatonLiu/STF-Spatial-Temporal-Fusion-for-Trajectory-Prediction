@@ -15,7 +15,7 @@ from layers.graph import Graph
 import time
 
 
-class Feeder(torch.utils.data.Dataset):
+class DataSet(torch.utils.data.Dataset):
     """ Feeder for skeleton-based action recognition
     Arguments:
         data_path: the path to '.npy' data, the shape of data should be (N, C, T, V, M)
@@ -54,10 +54,10 @@ class Feeder(torch.utils.data.Dataset):
         with open(self.data_path, 'rb') as reader:
             # Training (N, C, T, V)=(5010, 11, 12, 120),(5010,720,720) (5010, 120, 120), (5010, 2)
             [self.all_feature, self.all_adjacency, self.all_adjacency_biggraph, self.all_mean_xy] = pickle.load(reader)
-        # print('self.all_feature shape in xin_feeder_baidu', self.all_feature.shape)
-        # print('self.all_adjacency shape in xin_feeder_baidu', self.all_adjacency.shape)
-        # print('self.all_adjacency_biggraph shape in xin_feeder_baidu',self.all_adjacency_biggraph.shape)#
-        # print('self.all_mean_xy shape in xin_feeder_baidu', self.all_mean_xy.shape)
+        print('self.all_feature shape in xin_feeder_baidu', self.all_feature.shape)
+        print('self.all_adjacency shape in xin_feeder_baidu', self.all_adjacency.shape)
+        print('self.all_adjacency_biggraph shape in xin_feeder_baidu',self.all_adjacency_biggraph.shape)#
+        print('self.all_mean_xy shape in xin_feeder_baidu', self.all_mean_xy.shape)
 
     def __len__(self):
         return len(self.all_feature)
@@ -67,24 +67,24 @@ class Feeder(torch.utils.data.Dataset):
         now_feature = self.all_feature[idx].copy()  # (C, T, V) = (11, 12, 120)
         now_mean_xy = self.all_mean_xy[idx].copy()  # (2,) = (x, y)
 
-        if self.train_val_test.lower() == 'train' and np.random.random() > 0.5:
-            angle = 2 * np.pi * np.random.random()
-            sin_angle = np.sin(angle)
-            cos_angle = np.cos(angle)
-
-            angle_mat = np.array(
-                [[cos_angle, -sin_angle],
-                 [sin_angle, cos_angle]])
-
-            xy = now_feature[3:5, :, :]  # (2,T,V)=(2,12,120)
-            num_xy = np.sum(xy.sum(axis=0).sum(axis=0) != 0)  # get the number of valid data
-
-            # angle_mat: (2, 2), xy: (2, 12, 120)
-            out_xy = np.einsum('ab,btv->atv', angle_mat, xy)
-            now_mean_xy = np.matmul(angle_mat, now_mean_xy)
-            xy[:, :, :num_xy] = out_xy[:, :, :num_xy]
-
-            now_feature[3:5, :, :] = xy  # (2,T, V_valid)=(2,12, n(<120))
+        # if self.train_val_test.lower() == 'train' and np.random.random() > 0.5:
+        #     angle = 2 * np.pi * np.random.random()
+        #     sin_angle = np.sin(angle)
+        #     cos_angle = np.cos(angle)
+        #
+        #     angle_mat = np.array(
+        #         [[cos_angle, -sin_angle],
+        #          [sin_angle, cos_angle]])
+        #
+        #     xy = now_feature[3:5, :, :]  # (2,T,V)=(2,12,120)
+        #     num_xy = np.sum(xy.sum(axis=0).sum(axis=0) != 0)  # get the number of valid data
+        #
+        #     # angle_mat: (2, 2), xy: (2, 12, 120)
+        #     out_xy = np.einsum('ab,btv->atv', angle_mat, xy)
+        #     now_mean_xy = np.matmul(angle_mat, now_mean_xy)
+        #     xy[:, :, :num_xy] = out_xy[:, :, :num_xy]
+        #
+        #     now_feature[3:5, :, :] = xy  # (2,T, V_valid)=(2,12, n(<120))
 
         now_adjacency = self.graph.get_adjacency(self.all_adjacency[idx])  ##self.all_adjacency[idx]=(120,120)
         now_A = self.graph.normalize_adjacency(now_adjacency)
