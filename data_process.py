@@ -241,6 +241,8 @@ def generate_test_data(pra_file_path):
     for start_ind in start_frame_id_list:
         start_ind = int(start_ind)
         end_ind = int(start_ind + history_frames)
+        if end_ind >= frame_id_set[-1]:
+            break
         observed_last = end_ind - 1
         # print(start_ind, end_ind)
         object_frame_feature, neighbor_matrix, adjacency_matrix_biggraph, mean_xy = process_data(now_dict, start_ind,

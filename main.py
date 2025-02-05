@@ -45,8 +45,8 @@ max_y = 1.
 history_frames = 6  # 3 second * 2 frame/second
 future_frames = 6  # 3 second * 2 frame/second
 
-batch_size_train = 64  ##64
-batch_size_val = 64  ##32
+batch_size_train = 8  ##64
+batch_size_val = 8  ##32
 batch_size_test = 1
 # total_epoch = 3################################################################epoch################################
 # total_epoch = 50
@@ -109,7 +109,7 @@ def my_save_model(pra_model, pra_epoch):
 
 
 def my_load_model(pra_model, pra_path):
-    checkpoint = torch.load(pra_path)
+    checkpoint = torch.load(pra_path, weights_only=False)
     pra_model.load_state_dict(checkpoint['xin_graph_seq2seq_model'])
     print('Successfull loaded from {}'.format(pra_path))
     return pra_model
@@ -229,7 +229,7 @@ def train_model(pra_model: Model, pra_data_loader, pra_optimizer, pra_epoch_log)
             pra_optimizer.step()
 
 
-def val_model(pra_model, pra_data_loader):
+def val_model(pra_model: Model, pra_data_loader):
     # pra_model.to(dev)
     pra_model.eval()
     rescale_xy = torch.ones((1, 2, 1, 1)).to(dev)
@@ -250,7 +250,7 @@ def val_model(pra_model, pra_data_loader):
         # C = 11: [frame_id, object_id, object_type, position_x, position_y, position_z, object_length, pbject_width, pbject_height, heading] + [mask]
         data, no_norm_loc_data, _ = preprocess_data(ori_data, rescale_xy)
 
-        for now_history_frames in range(6, 7):
+        for now_history_frames in range(history_frames, history_frames + 1):
             input_data = data[:, :, :now_history_frames, :]  # (N, C, T, V)=(N, 4, 6, 120)
             output_loc_GT = data[:, :2, now_history_frames:, :]  # (N, C, T, V)=(N, 2, 6, 120)
             output_mask = data[:, -1:, now_history_frames:, :]  # (N, C, T, V)=(N, 1, 6, 120)
@@ -332,7 +332,7 @@ def val_model(pra_model, pra_data_loader):
     return all_overall_sum_list, all_overall_num_list
 
 
-def test_model(pra_model, pra_data_loader):
+def test_model(pra_model: Model, pra_data_loader):
     # pra_model.to(dev)
     pra_model.eval()
     rescale_xy = torch.ones((1, 2, 1, 1)).to(dev)
@@ -462,10 +462,9 @@ if __name__ == '__main__':
 
     # train and evaluate model
     # run_trainval(model, pra_traindata_path='./train_data.pkl', pra_testdata_path='./test_data.pkl')###########################
-    run_trainval(model, pra_traindata_path=traindata_path,
-                 pra_testdata_path='test_data.pkl')
+    # run_trainval(model, pra_traindata_path=traindata_path,
+    #              pra_testdata_path='test_data.pkl')
 
-    # pretrained_model_path = './trained_models/model_epoch_0016.pt'
-    # pretrained_model_path = os.path.join(work_dir,'model_epoch_0001.pt')
-    # model = my_load_model(model, pretrained_model_path)
-    # run_test(model, '/mnt/DataSets/phan635_1/stfusion-dataset/test_data.pkl')
+    pretrained_model_path = os.path.join(work_dir, 'model_epoch_0225.pt')
+    model = my_load_model(model, pretrained_model_path)
+    run_test(model, 'train_data.pkl')
