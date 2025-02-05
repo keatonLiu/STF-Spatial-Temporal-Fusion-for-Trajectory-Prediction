@@ -13,7 +13,7 @@ torch.cuda.empty_cache()  ##new
 class Model(nn.Module):
     def __init__(self, in_channels, graph_args, edge_importance_weighting, **kwargs):
         super().__init__()
-
+        self.use_transformer = False
         # load graph
         self.graph = Graph(**graph_args)  ###graph_args={'max_hop':2, 'num_node':120}
         A = np.ones((graph_args['max_hop'] + 1, graph_args['num_node'], graph_args['num_node']))
@@ -134,17 +134,18 @@ class Model(nn.Module):
         if pra_teacher_forcing_ratio > 0 and type(pra_teacher_location) is not type(None):
             pra_teacher_location = self.reshape_for_lstm(pra_teacher_location)
 
-        pra_teacher_location_tf = pra_teacher_location.clone()
-        # ##############transformer method #########################
-        # future_trajectory = self.reshape_for_lstm(pra_teacher_location)  ##(N*V, T, 2)
-        pra_teacher_location_tf = self.linear_for_TF(pra_teacher_location_tf)  ###(N*V, T, 2)->(N*V,T,64)
-        print('in model.py line 154')
-        print('graph_conv_feature shape: {}, pra_teacher_location shape: {}'.format(graph_conv_feature.shape,pra_teacher_location.shape))
-        sequence_length = pra_teacher_location_tf.size(1)
-        tgt_mask = self.transformer_model.get_tgt_mask(sequence_length)  ## device
-        print('tgt_mask device before to function in model.py',tgt_mask.device)
-        tgt_mask = tgt_mask.to('cuda:0')  ##dev = 'cuda:0' in main.py
-        print('tgt_mask device after to function in model.py', tgt_mask.device)
+        if self.use_transformer:
+            pra_teacher_location_tf = pra_teacher_location.clone()
+            # ##############transformer method #########################
+            # future_trajectory = self.reshape_for_lstm(pra_teacher_location)  ##(N*V, T, 2)
+            pra_teacher_location_tf = self.linear_for_TF(pra_teacher_location_tf)  ###(N*V, T, 2)->(N*V,T,64)
+            print('in model.py line 154')
+            print('graph_conv_feature shape: {}, pra_teacher_location shape: {}'.format(graph_conv_feature.shape,pra_teacher_location.shape))
+            sequence_length = pra_teacher_location_tf.size(1)
+            tgt_mask = self.transformer_model.get_tgt_mask(sequence_length)  ## device
+            print('tgt_mask device before to function in model.py',tgt_mask.device)
+            tgt_mask = tgt_mask.to('cuda:0')  ##dev = 'cuda:0' in main.py
+            print('tgt_mask device after to function in model.py', tgt_mask.device)
         # ===============================================================================
 
 
@@ -154,31 +155,37 @@ class Model(nn.Module):
         now_predict_car = self.seq2seq_car(in_data=graph_conv_feature, last_location=last_position[:, -1:, :],
                                            pred_length=pra_pred_length, teacher_forcing_ratio=pra_teacher_forcing_ratio,
                                            teacher_location=pra_teacher_location) # (2400,6,2)
-        now_predict_car_TF = self.transformer_model(src=graph_conv_feature, tgt=pra_teacher_location_tf, tgt_mask=tgt_mask) # (2400,6,2)
 
+        if self.use_transformer:
+            now_predict_car_TF = self.transformer_model(src=graph_conv_feature, tgt=pra_teacher_location_tf, tgt_mask=tgt_mask) # (2400,6,2)
+            now_predict_car += now_predict_car_TF
         # TODO: add transformer model, cross attention: now_predict_car + now_predict_car_TF
 
-        now_predict_car = self.reshape_from_lstm(now_predict_car + now_predict_car_TF)  # (N, C, T, V)
+        now_predict_car = self.reshape_from_lstm(now_predict_car)  # (N, C, T, V)
 
         now_predict_human = self.seq2seq_human(in_data=graph_conv_feature, last_location=last_position[:, -1:, :],
                                                pred_length=pra_pred_length,
                                                teacher_forcing_ratio=pra_teacher_forcing_ratio,
                                                teacher_location=pra_teacher_location)
-        now_predict_human_TF = self.transformer_model(src=graph_conv_feature, tgt=pra_teacher_location_tf,
-                                                      tgt_mask=tgt_mask)
-        now_predict_human = self.reshape_from_lstm(now_predict_human + now_predict_human_TF)  # (N, C, T, V)
+        if self.use_transformer:
+            now_predict_human_TF = self.transformer_model(src=graph_conv_feature, tgt=pra_teacher_location_tf,
+                                                          tgt_mask=tgt_mask)
+            now_predict_human += now_predict_human_TF
+        now_predict_human = self.reshape_from_lstm(now_predict_human)  # (N, C, T, V)
 
         now_predict_bike = self.seq2seq_bike(in_data=graph_conv_feature, last_location=last_position[:, -1:, :],
                                              pred_length=pra_pred_length,
                                              teacher_forcing_ratio=pra_teacher_forcing_ratio,
                                              teacher_location=pra_teacher_location)
-        now_predict_bike_TF = self.transformer_model(src=graph_conv_feature, tgt=pra_teacher_location_tf,
-                                                     tgt_mask=tgt_mask)
-        now_predict_bike = self.reshape_from_lstm(now_predict_bike + now_predict_bike_TF)  # (N, C, T, V)
+        if self.use_transformer:
+            now_predict_bike_TF = self.transformer_model(src=graph_conv_feature, tgt=pra_teacher_location_tf,
+                                                         tgt_mask=tgt_mask)
+            now_predict_bike += now_predict_bike_TF
+        now_predict_bike = self.reshape_from_lstm(now_predict_bike)  # (N, C, T, V)
 
         now_predict = (now_predict_car + now_predict_human + now_predict_bike) / 3.
 
-        return now_predict / 2
+        return now_predict / 2 if self.use_transformer else now_predict
 
 
 if __name__ == '__main__':
