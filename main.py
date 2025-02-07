@@ -457,13 +457,11 @@ def run_test(pra_model, pra_data_path):
 
 if __name__ == '__main__':
     graph_args = {'max_hop': 2, 'num_node': max_num_object}
-    model = Model(in_channels=4, graph_args=graph_args, edge_importance_weighting=True)
+    model = Model(in_channels=4, graph_args=graph_args, edge_importance_weighting=True, use_transformer=False, use_3d=True)
     model.to(dev)
 
     # train and evaluate model
-    # run_trainval(model, pra_traindata_path='./train_data.pkl', pra_testdata_path='./test_data.pkl')###########################
-    # run_trainval(model, pra_traindata_path=traindata_path,
-    #              pra_testdata_path='test_data.pkl')
+    # run_trainval(model, pra_traindata_path=traindata_path, pra_testdata_path='test_data.pkl')
 
     pretrained_model_path = os.path.join(work_dir, 'model_epoch_0225.pt')
     model = my_load_model(model, pretrained_model_path)

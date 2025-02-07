@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import numpy as np
 import math
 
@@ -197,3 +196,28 @@ class Transformer(nn.Module):
         # If matrix = [1,2,3,0,0,0] where pad_token=0, the result mask is
         # [False, False, False, True, True, True]
         return (matrix == pad_token)
+
+
+class CrossAttention(nn.Module):
+    def __init__(self, query_dim, key_dim, value_dim):
+        super(CrossAttention, self).__init__()
+        self.query_dim = query_dim  # 32
+        self.key_dim = key_dim  # 64
+        self.value_dim = value_dim  # 64
+
+        self.query_linear = nn.Linear(query_dim, query_dim)
+        self.key_linear = nn.Linear(key_dim, query_dim)
+        self.value_linear = nn.Linear(value_dim, query_dim)
+
+    def forward(self, query, key, value):
+        # 计算查询序列的注意力权重
+        query_emb = self.query_linear(query)  # 64*10*32
+        key_emb = self.key_linear(key)  # 64*10*32
+        attention_weights = torch.bmm(query_emb, key_emb.transpose(1, 2))  # 64*10*10
+        attention_weights = torch.softmax(attention_weights, dim=-1)  # 64*10*10
+
+        # 根据注意力权重对值序列进行加权求和
+        value_emb = self.value_linear(value)  # 64*10*32
+        attended_values = torch.bmm(attention_weights, value_emb)  # 64*10*32
+
+        return attended_values
