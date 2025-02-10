@@ -16,6 +16,8 @@ class Model(nn.Module):
         self.use_transformer = kwargs.pop('use_transformer', False)
         self.use_3d = kwargs.pop('use_3d', False)
         self.use_cross_attention = kwargs.pop('use_cross_attention', False)
+        self.seq2seq_method = kwargs.pop('seq2seq_method', 'gru')
+
         # load graph
         self.graph = Graph(**graph_args)  ###graph_args={'max_hop':2, 'num_node':120}
         A = np.ones((graph_args['max_hop'] + 1, graph_args['num_node'], graph_args['num_node']))
@@ -55,11 +57,11 @@ class Model(nn.Module):
         self.num_node = self.graph.num_node
         self.out_dim_per_node = out_dim_per_node = 2  # (x, y) coordinate
         self.seq2seq_car = Seq2Seq(input_size=64, hidden_size=out_dim_per_node, num_layers=2, dropout=0.5,
-                                   isCuda=True)
+                                   isCuda=True, method=self.seq2seq_method)
         self.seq2seq_human = Seq2Seq(input_size=64, hidden_size=out_dim_per_node, num_layers=2, dropout=0.5,
-                                     isCuda=True)
+                                     isCuda=True, method=self.seq2seq_method)
         self.seq2seq_bike = Seq2Seq(input_size=64, hidden_size=out_dim_per_node, num_layers=2, dropout=0.5,
-                                    isCuda=True)
+                                    isCuda=True, method=self.seq2seq_method)
         self.cross_attention = CrossAttention(out_dim_per_node, out_dim_per_node, out_dim_per_node)
 
     def reshape_for_lstm(self, feature):

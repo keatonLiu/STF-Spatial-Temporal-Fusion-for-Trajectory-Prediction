@@ -9,14 +9,18 @@ import math
 # 	- predict locations
 ####################################################
 class EncoderRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, isCuda=True):
+    def __init__(self, input_size, hidden_size, num_layers, isCuda=True, method: str = 'gru'):
         super(EncoderRNN, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.isCuda = isCuda
-        # self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.lstm = nn.GRU(input_size, hidden_size * 30, num_layers, batch_first=True)
+        if method == 'gru':
+            self.lstm = nn.GRU(input_size, hidden_size * 30, num_layers, batch_first=True)
+        elif method == 'lstm':
+            self.lstm = nn.LSTM(input_size, hidden_size * 30, num_layers, batch_first=True)
+        else:
+            raise ValueError("method should be 'gru' or 'lstm'")
 
     def forward(self, input):
         output, hidden = self.lstm(input)
@@ -24,14 +28,18 @@ class EncoderRNN(nn.Module):
 
 
 class DecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size, num_layers, dropout=0.5, isCuda=True):
+    def __init__(self, hidden_size, output_size, num_layers, dropout=0.5, isCuda=True, method: str = 'gru'):
         super(DecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.num_layers = num_layers
         self.isCuda = isCuda
-        # self.lstm = nn.LSTM(hidden_size, output_size, num_layers, batch_first=True)
-        self.lstm = nn.GRU(hidden_size, output_size * 30, num_layers, batch_first=True)
+        if method == 'gru':
+            self.lstm = nn.GRU(hidden_size, output_size * 30, num_layers, batch_first=True)
+        elif method == 'lstm':
+            self.lstm = nn.LSTM(hidden_size, output_size * 30, num_layers, batch_first=True)
+        else:
+            raise ValueError("method should be 'gru' or 'lstm'")
 
         # self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
@@ -51,12 +59,12 @@ class DecoderRNN(nn.Module):
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, dropout=0.5, isCuda=True):
+    def __init__(self, input_size, hidden_size, num_layers, dropout=0.5, isCuda=True, method: str = 'gru'):
         super(Seq2Seq, self).__init__()
         self.isCuda = isCuda
         # self.pred_length = pred_length
-        self.encoder = EncoderRNN(input_size, hidden_size, num_layers, isCuda)
-        self.decoder = DecoderRNN(hidden_size, hidden_size, num_layers, dropout, isCuda)
+        self.encoder = EncoderRNN(input_size, hidden_size, num_layers, isCuda, method)
+        self.decoder = DecoderRNN(hidden_size, hidden_size, num_layers, dropout, isCuda, method)
 
     def forward(self, in_data, last_location, pred_length, teacher_forcing_ratio=0, teacher_location=None):
         batch_size = in_data.shape[0]
