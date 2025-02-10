@@ -17,10 +17,8 @@ class EncoderRNN(nn.Module):
         self.isCuda = isCuda
         if method == 'gru':
             self.lstm = nn.GRU(input_size, hidden_size * 30, num_layers, batch_first=True)
-        elif method == 'lstm':
-            self.lstm = nn.LSTM(input_size, hidden_size * 30, num_layers, batch_first=True)
         else:
-            raise ValueError("method should be 'gru' or 'lstm'")
+            self.lstm = nn.LSTM(input_size, hidden_size * 30, num_layers, batch_first=True)
 
     def forward(self, input):
         output, hidden = self.lstm(input)
@@ -36,10 +34,8 @@ class DecoderRNN(nn.Module):
         self.isCuda = isCuda
         if method == 'gru':
             self.lstm = nn.GRU(hidden_size, output_size * 30, num_layers, batch_first=True)
-        elif method == 'lstm':
-            self.lstm = nn.LSTM(hidden_size, output_size * 30, num_layers, batch_first=True)
         else:
-            raise ValueError("method should be 'gru' or 'lstm'")
+            self.lstm = nn.LSTM(hidden_size, output_size * 30, num_layers, batch_first=True)
 
         # self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()

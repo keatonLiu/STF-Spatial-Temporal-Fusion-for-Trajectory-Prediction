@@ -462,7 +462,7 @@ if __name__ == '__main__':
         use_transformer=False,
         use_3d=True,
         use_cross_attention=False,
-        seq2seq_method='gru'  # either 'gru' or 'lstm'
+        seq2seq_method='gru'  # 'gru', 'lstm', 'none'
     )
     model.to(dev)
 
