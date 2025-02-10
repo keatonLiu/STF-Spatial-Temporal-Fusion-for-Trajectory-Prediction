@@ -457,8 +457,13 @@ def run_test(pra_model, pra_data_path):
 
 if __name__ == '__main__':
     graph_args = {'max_hop': 2, 'num_node': max_num_object}
-    model = Model(in_channels=4, graph_args=graph_args, edge_importance_weighting=True, use_transformer=False,
-                  use_3d=True, seq2seq_method='gru')
+    model = Model(
+        in_channels=4, graph_args=graph_args, edge_importance_weighting=True,
+        use_transformer=False,
+        use_3d=True,
+        use_cross_attention=False,
+        seq2seq_method='gru'  # either 'gru' or 'lstm'
+    )
     model.to(dev)
 
     # train and evaluate model
