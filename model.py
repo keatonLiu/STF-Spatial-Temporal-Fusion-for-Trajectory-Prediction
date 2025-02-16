@@ -89,9 +89,9 @@ class Model(nn.Module):
         return now_feat
 
     def mix(self, x, y):
-        if not x:
+        if x is None:
             return y
-        if not y:
+        if y is None:
             return x
 
         if not self.use_cross_attention:
