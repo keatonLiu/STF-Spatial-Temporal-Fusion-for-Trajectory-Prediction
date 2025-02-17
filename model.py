@@ -17,6 +17,7 @@ class Model(nn.Module):
         self.use_3d = kwargs.pop('use_3d', False)
         self.use_cross_attention = kwargs.pop('use_cross_attention', False)
         self.seq2seq_method = kwargs.pop('seq2seq_method', 'gru')
+        self.encoder_only = kwargs.pop('encoder_only', False)
 
         assert self.use_transformer or self.seq2seq_method != 'none', \
             'At least one of use_transformer and seq2seq_method should be used'
@@ -45,7 +46,7 @@ class Model(nn.Module):
         # self.transformer_model = nn.Transformer(d_model=64, nhead=16, num_encoder_layers=12, batch_first=True)  ##new
         # self.linear_for_output = nn.LazyLinear(2)  ### need to be improved in the future
         self.transformer_model = Transformer(num_tokens=2, dim_model=64, num_heads=16, num_encoder_layers=12,
-                                             num_decoder_layers=0, dropout_p=0.1)  # new new
+                                             num_decoder_layers=0 if self.encoder_only else 12, dropout_p=0.1)  # new new
 
         # initialize parameters for edge importance weighting
         if edge_importance_weighting:

@@ -1,3 +1,5 @@
+import argparse
+import logging
 import os
 import random
 from datetime import datetime
@@ -9,6 +11,26 @@ import torch.optim as optim
 from model import Model
 from settings import max_num_object
 from xin_feeder_baidu import DataSet
+
+# 定义命令行参数
+parser = argparse.ArgumentParser(description='Train and evaluate the model.')
+# use store true
+parser.add_argument('--debug', action="store_true", help='Whether to use debug model.')
+parser.add_argument('--use_transformer', action="store_true", help='Whether to use transformer.')
+parser.add_argument('--encoder_only', action="store_true", help='Whether to use encoder only for transformer.')
+parser.add_argument('--use_3d', action="store_true", help='Whether to use 3D.')
+parser.add_argument('--use_cross_attention', action="store_true", help='Whether to use cross attention.')
+parser.add_argument('--seq2seq_method', type=str, default='gru', choices=['gru', 'lstm', 'none'], help='Seq2Seq method to use.')
+parser.add_argument('--total_epoch', type=int, default=226, help='Total number of epochs.')
+parser.add_argument('--run_name', type=str, default='', help='Run name.')
+parser.add_argument('--work_dir', type=str, default='./trained_models', help='Directory to save trained models.')
+parser.add_argument('--traindata_path', type=str, default='./train_data.pkl', help='Path to training data.')
+parser.add_argument('--log_file', type=str, default='log_test.txt', help='Log file name.')
+parser.add_argument('--batch_size_train', type=int, default=256, help='Batch size for training.')
+parser.add_argument('--batch_size_val', type=int, default=128, help='Batch size for validation.')
+parser.add_argument('--batch_size_test', type=int, default=1, help='Batch size for testing.')
+
+args = parser.parse_args()
 
 ###############the code is mainly from https://github.com/xincoder/GRIP/tree/master
 CUDA_VISIBLE_DEVICES = '0'
@@ -27,34 +49,47 @@ def seed_torch(seed=0):
 
 
 seed_torch()
+# 根据debug_model设置不同的参数
+if args.debug:
+    args.total_epoch = 3
+    args.work_dir = './trained_models_mini'
+    args.traindata_path = './train_data_mini.pkl'
 
-debug_model = False
-# debug_model=True
-
-if debug_model == True:
-    total_epoch = 3
-    work_dir = './trained_models_mini'
-    traindata_path = './train_data_mini.pkl'
-else:
-    total_epoch = 226
-    work_dir = './trained_models'
-    traindata_path = './train_data.pkl'
+total_epoch = args.total_epoch
+work_dir = args.work_dir
+traindata_path = args.traindata_path
+if not os.path.exists(work_dir):
+    os.makedirs(work_dir)
 
 max_x = 1.
 max_y = 1.
 history_frames = 6  # 3 second * 2 frame/second
 future_frames = 6  # 3 second * 2 frame/second
 
-batch_size_train = 8  ##64
-batch_size_val = 8  ##32
-batch_size_test = 1
+# 使用命令行参数设置 batch size
+batch_size_train = args.batch_size_train
+batch_size_val = args.batch_size_val
+batch_size_test = args.batch_size_test
+
 # total_epoch = 3################################################################epoch################################
 # total_epoch = 50
 base_lr = 0.01
 lr_decay_epoch = 5
 dev = 'cuda:0'
-# work_dir = './trained_models'################################################################
-log_file = os.path.join(work_dir, 'log_test.txt')
+log_file = os.path.join(args.work_dir, args.log_file)
+
+if args.run_name:
+    logger = logging.getLogger(args.run_name)
+else:
+    logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s [%(levelname)s] %(message)s')
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+file_handler = logging.FileHandler(log_file)
+file_handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 test_result_file = 'prediction_result.txt'
 
 criterion = torch.nn.SmoothL1Loss()
@@ -93,7 +128,7 @@ def display_result(pra_results, pra_pref='Train_epoch'):
     #     overall_loss_time_second_mean_new.append(np.mean(overall_loss_time_new[i*frame_rate:((i+1)*frame_rate)]))
     overall_log_new = '|{}|[{}] RMSE second mean framerate new: {}'.format(datetime.now(), pra_pref, ' '.join(
         ['{:.3f}'.format(x) for x in list(overall_loss_time_new) + [np.sum(overall_loss_time_new)]]))
-    my_print(overall_log_new)
+    logger.info(overall_log_new)
 
     return overall_loss_time_new
 
@@ -220,7 +255,7 @@ def train_model(pra_model: Model, pra_data_loader, pra_optimizer, pra_epoch_log)
                                                                  torch.ones(1, ).to(dev))  # (1,)
 
             now_lr = [param_group['lr'] for param_group in pra_optimizer.param_groups][0]
-            my_print(
+            logger.info(
                 '|{}|{:>20}|\tIteration:{:>5}|\tLoss:{:.8f}|lr: {}|'.format(datetime.now(), pra_epoch_log, iteration,
                                                                             total_loss.data.item(), now_lr))
 
@@ -325,7 +360,7 @@ def val_model(pra_model: Model, pra_data_loader):
     result = 0.20 * result_car + 0.58 * result_human + 0.22 * result_bike
     overall_log = '|{}|[{}] All_All: {}'.format(datetime.now(), 'WS',
                                                 ' '.join(['{:.3f}'.format(x) for x in list(result) + [np.sum(result)]]))
-    my_print(overall_log)
+    logger.info(overall_log)
 
     all_overall_sum_list = np.array(all_overall_sum_list)
     all_overall_num_list = np.array(all_overall_num_list)
@@ -406,7 +441,7 @@ def run_trainval(pra_model: Model, pra_traindata_path, pra_testdata_path):
     ##Total number: 5010 in Feeder
     loader_train = data_loader(pra_traindata_path, pra_batch_size=batch_size_train, pra_shuffle=True,
                                pra_drop_last=False, train_val_test='train')
-    print('loader_train shape:', len(loader_train))  ##
+    logger.info('loader_train shape:', len(loader_train))  ##
 
     # print('loader_test')
     ## Total number: 415 in Feeder
@@ -428,14 +463,14 @@ def run_trainval(pra_model: Model, pra_traindata_path, pra_testdata_path):
         # all_loader_train = itertools.chain(loader_train, loader_test)
         all_loader_train = loader_train  ##new
 
-        my_print('#######################################Train')
+        logger.info('#######################################Train')
         # torch.cuda.empty_cache()###############################new
         train_model(pra_model, all_loader_train, pra_optimizer=optimizer,
                     pra_epoch_log='Epoch:{:>4}/{:>4}'.format(now_epoch, total_epoch))
 
         my_save_model(pra_model, now_epoch)
 
-        my_print('#######################################Validation')
+        logger.info('#######################################Validation')
         # torch.cuda.empty_cache()##############################new
         display_result(
             val_model(pra_model, loader_val),
@@ -457,18 +492,21 @@ def run_test(pra_model, pra_data_path):
 
 if __name__ == '__main__':
     graph_args = {'max_hop': 2, 'num_node': max_num_object}
+    logger.info('Create model, args: {}'.format(args))
     model = Model(
         in_channels=4, graph_args=graph_args, edge_importance_weighting=True,
-        use_transformer=False,
-        use_3d=True,
-        use_cross_attention=False,
-        seq2seq_method='gru'  # 'gru', 'lstm', 'none'
+        use_transformer=args.use_transformer,
+        encoder_only=args.encoder_only,
+        use_3d=args.use_3d,
+        use_cross_attention=args.use_cross_attention,
+        seq2seq_method=args.seq2seq_method  # 'gru', 'lstm', 'none'
     )
     model.to(dev)
 
     # train and evaluate model
-    # run_trainval(model, pra_traindata_path=traindata_path, pra_testdata_path='test_data.pkl')
+    logger.info('Start training and evaluating model...')
+    run_trainval(model, pra_traindata_path=args.traindata_path, pra_testdata_path='test_data.pkl')
 
-    pretrained_model_path = os.path.join(work_dir, 'model_epoch_0225.pt')
-    model = my_load_model(model, pretrained_model_path)
-    run_test(model, 'train_data.pkl')
+    # pretrained_model_path = os.path.join(args.work_dir, 'model_epoch_0225.pt')
+    # model = my_load_model(model, pretrained_model_path)
+    # run_test(model, 'train_data.pkl')
