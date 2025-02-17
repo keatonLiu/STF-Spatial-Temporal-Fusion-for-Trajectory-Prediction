@@ -89,6 +89,7 @@ handler.setFormatter(formatter)
 file_handler = logging.FileHandler(log_file)
 file_handler.setFormatter(formatter)
 logger.addHandler(handler)
+logger.addHandler(file_handler)
 
 test_result_file = 'prediction_result.txt'
 
