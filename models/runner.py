@@ -6,7 +6,7 @@ import sys
 
 PROJECT_DIR = pathlib.Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description='Run multiple experiments.')
-parser.add_argument('--batch_size_train', type=int, default=256, help='Batch size for training.')
+parser.add_argument('--batch_size_train', type=int, default=230, help='Batch size for training.')
 parser.add_argument('--batch_size_val', type=int, default=128, help='Batch size for validation.')
 parser.add_argument('--batch_size_test', type=int, default=1, help='Batch size for testing.')
 
