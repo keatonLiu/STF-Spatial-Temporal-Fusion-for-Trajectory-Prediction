@@ -22,10 +22,10 @@ if __name__ == '__main__':
     runs = {
         'gru': ['--seq2seq_method', 'gru'],
         'gru+3d': ['--seq2seq_method', 'gru', '--use_3d'],
-        'gru+cross+trans': ['--seq2seq_method', 'gru', '--use_transformer', '--use_cross_attention'],
-        'gru+trans': ['--seq2seq_method', 'gru', '--use_transformer'],
+        'gru+cross+trans-encoder': ['--seq2seq_method', 'gru', '--use_transformer', '--encoder_only', '--use_cross_attention'],
+        'gru+trans-encoder': ['--seq2seq_method', 'gru', '--use_transformer', '--encoder_only'],
         'lstm': ['--seq2seq_method', 'lstm'],
-        'trans-encoder': ['--use_transformer'],
+        'trans-encoder': ['--use_transformer', '--encoder_only'],
         'trans': ['--use_transformer'],
     }
     # run main.py with different args]

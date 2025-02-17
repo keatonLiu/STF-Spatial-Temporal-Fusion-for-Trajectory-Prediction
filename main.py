@@ -26,7 +26,7 @@ parser.add_argument('--run_name', type=str, default='', help='Run name.')
 parser.add_argument('--work_dir', type=str, default='./trained_models', help='Directory to save trained models.')
 parser.add_argument('--traindata_path', type=str, default='./train_data.pkl', help='Path to training data.')
 parser.add_argument('--log_file', type=str, default='log_test.txt', help='Log file name.')
-parser.add_argument('--batch_size_train', type=int, default=256, help='Batch size for training.')
+parser.add_argument('--batch_size_train', type=int, default=230, help='Batch size for training.')
 parser.add_argument('--batch_size_val', type=int, default=128, help='Batch size for validation.')
 parser.add_argument('--batch_size_test', type=int, default=1, help='Batch size for testing.')
 
@@ -441,7 +441,7 @@ def run_trainval(pra_model: Model, pra_traindata_path, pra_testdata_path):
     ##Total number: 5010 in Feeder
     loader_train = data_loader(pra_traindata_path, pra_batch_size=batch_size_train, pra_shuffle=True,
                                pra_drop_last=False, train_val_test='train')
-    logger.info('loader_train shape:', len(loader_train))  ##
+    print('loader_train shape:', len(loader_train))  ##
 
     # print('loader_test')
     ## Total number: 415 in Feeder
