@@ -159,6 +159,7 @@ class Model(nn.Module):
             pra_teacher_location_tf = pra_teacher_location.clone()
             # ##############transformer method #########################
             # future_trajectory = self.reshape_for_lstm(pra_teacher_location)  ##(N*V, T, 2)
+            print(f"pra_teacher_location_tf shape: {pra_teacher_location_tf.shape}")
             pra_teacher_location_tf = self.linear_for_TF(pra_teacher_location_tf)  ###(N*V, T, 2)->(N*V,T,64)
             print('in model.py line 154')
             print('graph_conv_feature shape: {}, pra_teacher_location shape: {}'.format(graph_conv_feature.shape,
