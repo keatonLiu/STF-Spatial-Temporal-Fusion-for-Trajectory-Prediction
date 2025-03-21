@@ -1,15 +1,9 @@
-import argparse
 import logging
 import pathlib
 import subprocess
 import sys
 
 PROJECT_DIR = pathlib.Path(__file__).resolve().parents[1]
-parser = argparse.ArgumentParser(description='Run multiple experiments.')
-parser.add_argument('--batch_size_train', type=int, default=230, help='Batch size for training.')
-parser.add_argument('--batch_size_val', type=int, default=128, help='Batch size for validation.')
-parser.add_argument('--batch_size_test', type=int, default=1, help='Batch size for testing.')
-
 logger = logging.getLogger()
 logger.handlers.clear()
 logger.setLevel(logging.DEBUG)
@@ -31,7 +25,7 @@ if __name__ == '__main__':
     # run main.py with different args]
     processes = []
     for run_name, args in runs.items():
+        args += ['--work_dir', f'./trained_models/{run_name}', '--run_name', run_name, *sys.argv[1:]]
         logger.info(f'Running {run_name}, Args: {args}')
-        args += ['--work_dir', f'./trained_models/{run_name}', '--run_name', run_name]
         p = subprocess.Popen([sys.executable, 'main.py'] + args, cwd=PROJECT_DIR)
         p.wait()

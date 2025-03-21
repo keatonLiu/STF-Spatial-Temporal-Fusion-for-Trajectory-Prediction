@@ -20,13 +20,14 @@ parser.add_argument('--use_transformer', action="store_true", help='Whether to u
 parser.add_argument('--encoder_only', action="store_true", help='Whether to use encoder only for transformer.')
 parser.add_argument('--use_3d', action="store_true", help='Whether to use 3D.')
 parser.add_argument('--use_cross_attention', action="store_true", help='Whether to use cross attention.')
-parser.add_argument('--seq2seq_method', type=str, default='gru', choices=['gru', 'lstm', 'none'], help='Seq2Seq method to use.')
+parser.add_argument('--seq2seq_method', type=str, default='gru', choices=['gru', 'lstm', 'none'],
+                    help='Seq2Seq method to use.')
 parser.add_argument('--total_epoch', type=int, default=226, help='Total number of epochs.')
 parser.add_argument('--run_name', type=str, default='', help='Run name.')
 parser.add_argument('--work_dir', type=str, default='./trained_models', help='Directory to save trained models.')
 parser.add_argument('--traindata_path', type=str, default='./train_data.pkl', help='Path to training data.')
 parser.add_argument('--log_file', type=str, default='log_test.txt', help='Log file name.')
-parser.add_argument('--batch_size_train', type=int, default=230, help='Batch size for training.')
+parser.add_argument('--batch_size_train', type=int, default=256, help='Batch size for training.')
 parser.add_argument('--batch_size_val', type=int, default=128, help='Batch size for validation.')
 parser.add_argument('--batch_size_test', type=int, default=1, help='Batch size for testing.')
 
@@ -70,7 +71,7 @@ future_frames = 6  # 3 second * 2 frame/second
 batch_size_train = args.batch_size_train
 batch_size_val = args.batch_size_val
 batch_size_test = args.batch_size_test
-
+print('batch_size_train:', batch_size_train)
 # total_epoch = 3################################################################epoch################################
 # total_epoch = 50
 base_lr = 0.01
@@ -109,7 +110,7 @@ def my_print(pra_content):
 #     all_overall_sum_list, all_overall_num_list = pra_results
 #     overall_sum_time = np.sum(all_overall_sum_list**0.5, axis=0)
 #     overall_num_time = np.sum(all_overall_num_list, axis=0)
-#     overall_loss_time = (overall_sum_time / overall_num_time) 
+#     overall_loss_time = (overall_sum_time / overall_num_time)
 #     overall_log = '|{}|[{}] All_All: {}'.format(datetime.now(), pra_pref, ' '.join(['{:.3f}'.format(x) for x in list(overall_loss_time) + [np.sum(overall_loss_time)]]))
 #     my_print(overall_log)
 #     return overall_loss_time
@@ -153,6 +154,9 @@ def my_load_model(pra_model, pra_path):
 
 def data_loader(pra_path, pra_batch_size=128, pra_shuffle=False, pra_drop_last=False, train_val_test='train'):
     dataset = DataSet(data_path=pra_path, graph_args=graph_args, train_val_test=train_val_test)
+    print('pra_path:', pra_path)
+    print('pra_batch_size:', pra_batch_size)
+    print('len(dataset):', len(dataset))
     loader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=pra_batch_size,
@@ -165,7 +169,7 @@ def data_loader(pra_path, pra_batch_size=128, pra_shuffle=False, pra_drop_last=F
 
 def preprocess_data(pra_data, pra_rescale_xy):
     # pra_data: (N, C, T, V)
-    # C = 11: [frame_id, object_id, object_type, position_x, position_y, position_z, object_length, pbject_width, pbject_height, heading] + [mask]	
+    # C = 11: [frame_id, object_id, object_type, position_x, position_y, position_z, object_length, pbject_width, pbject_height, heading] + [mask]
     feature_id = [3, 4, 9, 10]
     ori_data = pra_data[:, feature_id].detach()
     data = ori_data.detach().clone()
@@ -314,7 +318,7 @@ def val_model(pra_model: Model, pra_data_loader):
             predicted += ori_output_last_loc
 
             ### overall dist
-            # overall_sum_time, overall_num, x2y2 = compute_RMSE(predicted, output_loc_GT, output_mask)		
+            # overall_sum_time, overall_num, x2y2 = compute_RMSE(predicted, output_loc_GT, output_mask)
             overall_sum_time, overall_num, x2y2 = compute_RMSE(predicted, ori_output_loc_GT, output_mask)
             ##############(N,6)############(N,6)########(N,6,120)######
             # all_overall_sum_list.extend(overall_sum_time.detach().cpu().numpy())
@@ -505,9 +509,13 @@ if __name__ == '__main__':
     model.to(dev)
 
     # train and evaluate model
-    logger.info('Start training and evaluating model...')
-    run_trainval(model, pra_traindata_path=args.traindata_path, pra_testdata_path='test_data.pkl')
+    # logger.info('Start training and evaluating model...')
+    # run_trainval(model, pra_traindata_path=args.traindata_path, pra_testdata_path='test_data.pkl')
 
-    # pretrained_model_path = os.path.join(args.work_dir, 'model_epoch_0225.pt')
-    # model = my_load_model(model, pretrained_model_path)
-    # run_test(model, 'train_data.pkl')
+    if args.debug:
+        pretrained_model_path = os.path.join(args.work_dir, 'model_epoch_0002.pt')
+    else:
+        pretrained_model_path = os.path.join(args.work_dir, 'model_epoch_0225.pt')
+
+    model = my_load_model(model, pretrained_model_path)
+    run_test(model, traindata_path)
