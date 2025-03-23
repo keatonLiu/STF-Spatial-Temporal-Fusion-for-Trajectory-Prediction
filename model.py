@@ -46,7 +46,7 @@ class Model(nn.Module):
         # self.transformer_model = nn.Transformer(d_model=64, nhead=16, num_encoder_layers=12, batch_first=True)  ##new
         # self.linear_for_output = nn.LazyLinear(2)  ### need to be improved in the future
         self.transformer_model = Transformer(num_tokens=2, dim_model=64, num_heads=16, num_encoder_layers=12,
-                                             num_decoder_layers=0 if self.encoder_only else 12, dropout_p=0.1)  # new new
+                                             num_decoder_layers=1 if self.encoder_only else 12, dropout_p=0.1)  # new new
 
         # initialize parameters for edge importance weighting
         if edge_importance_weighting:

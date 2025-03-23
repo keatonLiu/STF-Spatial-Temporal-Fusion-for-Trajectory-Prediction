@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import math
+from transformers import BertModel, BertConfig
 
 
 ####################################################
@@ -154,7 +155,16 @@ class Transformer(nn.Module):
             num_decoder_layers=num_decoder_layers,
             dropout=dropout_p,
             batch_first=True
-        )
+        ).to('cuda:0')
+        # config = BertConfig(
+        #     hidden_size=dim_model,  # 等效于 d_model
+        #     num_attention_heads=num_heads,  # 注意力头数
+        #     num_hidden_layers=num_encoder_layers,  # Encoder 层数
+        #     intermediate_size=dim_model * 4,  # 通常为 4x hidden_size
+        #     hidden_dropout_prob=dropout_p,  # Dropout
+        #     attention_probs_dropout_prob=dropout_p
+        # )
+        # self.transformer = BertModel(config).to('cuda:0')
         self.out = nn.Linear(dim_model, num_tokens)  #####num_tokens=out_dim
 
     def forward(self, src, tgt, tgt_mask=None, src_pad_mask=None, tgt_pad_mask=None):
@@ -177,6 +187,10 @@ class Transformer(nn.Module):
         # Transformer blocks - Out size = (batch_size,sequence length ,num_tokens)#new
         transformer_out = self.transformer(src, tgt, tgt_mask=tgt_mask, src_key_padding_mask=src_pad_mask,
                                            tgt_key_padding_mask=tgt_pad_mask)
+        # transformer_out = self.transformer(
+        #     input_ids=src,  # 过去的轨迹（或输入序列）
+        #     attention_mask=src_pad_mask  # 只传入输入的 Mask
+        # )
         out = self.out(transformer_out)
         return out
 

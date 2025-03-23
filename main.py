@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import random
@@ -71,7 +72,7 @@ future_frames = 6  # 3 second * 2 frame/second
 batch_size_train = args.batch_size_train
 batch_size_val = args.batch_size_val
 batch_size_test = args.batch_size_test
-print('batch_size_train:', batch_size_train)
+# print('batch_size_train:', batch_size_train)
 # total_epoch = 3################################################################epoch################################
 # total_epoch = 50
 base_lr = 0.01
@@ -154,9 +155,9 @@ def my_load_model(pra_model, pra_path):
 
 def data_loader(pra_path, pra_batch_size=128, pra_shuffle=False, pra_drop_last=False, train_val_test='train'):
     dataset = DataSet(data_path=pra_path, graph_args=graph_args, train_val_test=train_val_test)
-    print('pra_path:', pra_path)
-    print('pra_batch_size:', pra_batch_size)
-    print('len(dataset):', len(dataset))
+    # print('pra_path:', pra_path)
+    # print('pra_batch_size:', pra_batch_size)
+    # print('len(dataset):', len(dataset))
     loader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=pra_batch_size,
@@ -219,7 +220,7 @@ def train_model(pra_model: Model, pra_data_loader, pra_optimizer, pra_epoch_log)
     # train model using training data
     for iteration, (ori_data, A, A_big, _) in enumerate(pra_data_loader):
         print(iteration, ori_data.shape, A.shape)
-        print('iteration{}, ori_data.shape:{}, A.shape:{}'.format(iteration, ori_data.shape, A.shape))
+        print('iteration:{}, ori_data.shape:{}, A.shape:{}'.format(iteration, ori_data.shape, A.shape))
         # ori_data.shape:torch.Size([64, 11, 12, 120]), A.shape:torch.Size([64, 3(max_hop=2), 120, 120])(note:graph_args={'max_hop':2, 'num_node':120})
 
         # ori_data: (N, C, T, V)
@@ -232,6 +233,8 @@ def train_model(pra_model: Model, pra_data_loader, pra_optimizer, pra_epoch_log)
         for now_history_frames in range(history_frames, history_frames + 1):
             input_data = data[:, :, :now_history_frames, :]  # (N, C, T, V)=(N, 4, 6, 120)
             # print('input shape:', input_data.shape)##torch.Size([64, 4, n, 120]),n={1,2,...11}
+
+            # 未来6个frame的真实位置
             output_loc_GT = data[:, :2, now_history_frames:, :]  # (N, C, T, V)=(N, 2, 6, 120)
             output_mask = data[:, -1:, now_history_frames:, :]  # (N, C, T, V)=(N, 1, 6, 120)
 
@@ -285,7 +288,7 @@ def val_model(pra_model: Model, pra_data_loader):
     all_bike_sum_list = []
     all_bike_num_list = []
     # train model using training data
-    for iteration, (ori_data, A, A_big, _) in enumerate(pra_data_loader):
+    for iteration, (ori_data, A, A_big, mean_xy) in enumerate(pra_data_loader):
         # data: (N, C, T, V)
         # C = 11: [frame_id, object_id, object_type, position_x, position_y, position_z, object_length, pbject_width, pbject_height, heading] + [mask]
         data, no_norm_loc_data, _ = preprocess_data(ori_data, rescale_xy)
@@ -299,7 +302,7 @@ def val_model(pra_model: Model, pra_data_loader):
             ori_output_last_loc = no_norm_loc_data[:, :2, now_history_frames - 1:now_history_frames, :]
 
             # for category
-            cat_mask = ori_data[:, 2:3, now_history_frames:, :]  # (N, C, T, V)=(N, 1, 6, 120)
+            cate_mask = ori_data[:, 2:3, now_history_frames:, :]  # (N, C, T, V)=(N, 1, 6, 120)
 
             A = A.float().to(dev)
             A_big = A_big.float().to(dev)  ##new
@@ -329,7 +332,7 @@ def val_model(pra_model: Model, pra_data_loader):
             all_overall_sum_list.extend(now_x2y2)
 
             ### car dist
-            car_mask = (((cat_mask == 1) + (cat_mask == 2)) > 0).float().to(dev)
+            car_mask = (((cate_mask == 1) + (cate_mask == 2)) > 0).float().to(dev)
             car_mask = output_mask * car_mask
             car_sum_time, car_num, car_x2y2 = compute_RMSE(predicted, ori_output_loc_GT, car_mask)
             all_car_num_list.extend(car_num.detach().cpu().numpy())
@@ -338,8 +341,28 @@ def val_model(pra_model: Model, pra_data_loader):
             car_x2y2 = car_x2y2.sum(axis=-1)
             all_car_sum_list.extend(car_x2y2)
 
+            # COMPARE PREDICT AND GROUND TRUTH (car)
+            pred = predicted * car_mask  # (N, C, T, V)=(N, 2, 6, 120)
+            hist = no_norm_loc_data[:, :2, :now_history_frames, :]
+            GT = ori_output_loc_GT * car_mask  # (N, C, T, V)=(N, 2, 6, 120)
+            mask = ((pred[:, 0, :, :] == 0) & (pred[:, 1, :, :] == 0))  #  | (1, 6, 120)
+            mask = mask | ((hist[:, 0, :, :] == 0) & (hist[:, 1, :, :] == 0))
+            mask = mask.any(dim=1)  # 在时间维度 (dim=1) 上检查是否**有任何**时间步 x, y = 0，形状 (1, 120)
+            filtered_pred = pred[:, :, :, ~mask.squeeze()]
+            filtered_GT = GT[:, :, :, ~mask.squeeze()]
+            filtered_hist = hist[:, :, :, ~mask.squeeze()]
+            for i in range(filtered_pred.shape[0]):
+                data = {
+                    'pred': filtered_pred[i].detach().cpu().tolist(),
+                    'GT': filtered_GT[i].detach().cpu().tolist(),
+                    'hist': filtered_hist[i].detach().cpu().tolist()
+                }
+
+            with open('log/pred.jsonl', 'a') as f:
+                f.write(json.dumps(data) + '\n')
+
             ### human dist
-            human_mask = (cat_mask == 3).float().to(dev)
+            human_mask = (cate_mask == 3).float().to(dev)
             human_mask = output_mask * human_mask
             human_sum_time, human_num, human_x2y2 = compute_RMSE(predicted, ori_output_loc_GT, human_mask)
             all_human_num_list.extend(human_num.detach().cpu().numpy())
@@ -349,7 +372,7 @@ def val_model(pra_model: Model, pra_data_loader):
             all_human_sum_list.extend(human_x2y2)
 
             ### bike dist
-            bike_mask = (cat_mask == 4).float().to(dev)
+            bike_mask = (cate_mask == 4).float().to(dev)
             bike_mask = output_mask * bike_mask
             bike_sum_time, bike_num, bike_x2y2 = compute_RMSE(predicted, ori_output_loc_GT, bike_mask)
             all_bike_num_list.extend(bike_num.detach().cpu().numpy())

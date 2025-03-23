@@ -94,9 +94,13 @@ def process_data(pra_now_dict, pra_start_ind, pra_end_ind, pra_observed_last):
         # now_frame_feature_dict = {obj_id : list(pra_now_dict[frame_ind][obj_id]-mean_xy)+[1] for obj_id in pra_now_dict[frame_ind] if obj_id in visible_object_id_list}
 
         # if the object at frame_ind appears at pra_observed_last the lablet will be 1, otherwise 0
+        # 当前frame下的所有object的特征，如果当前object在last observed frame中，label=1，否则label=0
+        # 格式为{obj_id: [feature1, feature2, ..., feature10, label]}
         now_frame_feature_dict = {obj_id: (
-            list(pra_now_dict[frame_ind][obj_id] - mean_xy) + [1] if obj_id in visible_object_id_list else list(
-                pra_now_dict[frame_ind][obj_id] - mean_xy) + [0]) for obj_id in pra_now_dict[frame_ind]}
+            list(pra_now_dict[frame_ind][obj_id] - mean_xy) + [1]
+            if obj_id in visible_object_id_list
+            else list(pra_now_dict[frame_ind][obj_id] - mean_xy) + [0])
+            for obj_id in pra_now_dict[frame_ind]}
 
         # if the current object(in now_all_object_id of sequence ) is not at this frame, we return all 0s by using dict.get(_, np.zeros(11))
         now_frame_feature = np.array(
@@ -150,7 +154,8 @@ def process_data(pra_now_dict, pra_start_ind, pra_end_ind, pra_observed_last):
 
     ##shape (6,120,120)
     adjacency_matrix_seq = seq_to_graph(np.transpose(object_frame_feature[:, :history_frames, :], (0, 2, 1)),
-                                        np.transpose(object_frame_feature[:, :history_frames, :], (0, 2, 1)))  ##input shape is (num_nodes,features,seqlength)
+                                        np.transpose(object_frame_feature[:, :history_frames, :],
+                                                     (0, 2, 1)))  ##input shape is (num_nodes,features,seqlength)
 
     ones_matrix = np.zeros((max_num_object, max_num_object))
     ones_matrix[:num_visible_object, :num_visible_object] = 1
