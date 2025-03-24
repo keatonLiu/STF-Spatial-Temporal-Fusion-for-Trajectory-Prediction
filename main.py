@@ -63,6 +63,9 @@ traindata_path = args.traindata_path
 if not os.path.exists(work_dir):
     os.makedirs(work_dir)
 
+if not os.path.exists('./log'):
+    os.makedirs('./log')
+
 max_x = 1.
 max_y = 1.
 history_frames = 6  # 3 second * 2 frame/second
@@ -96,6 +99,7 @@ logger.addHandler(file_handler)
 test_result_file = 'prediction_result.txt'
 
 criterion = torch.nn.SmoothL1Loss()
+print(f"main was reloaded, process_id: {os.getpid()}")
 
 if not os.path.exists(work_dir):
     os.makedirs(work_dir)
