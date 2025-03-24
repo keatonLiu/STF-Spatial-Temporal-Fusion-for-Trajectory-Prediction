@@ -1,18 +1,9 @@
-import os
-import sys
-import numpy as np
-import random
 import pickle
 
+import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-from torchvision import datasets, transforms
 
 from layers.graph import Graph
-
-import time
 
 
 class DataSet(torch.utils.data.Dataset):
@@ -64,8 +55,11 @@ class DataSet(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         # C = 11: [frame_id, object_id, object_type, position_x, position_y, position_z, object_length, pbject_width, pbject_height, heading] + [mask]
+        print(f"idx in xin_feeder_baidu: {idx}")
         now_feature = self.all_feature[idx].copy()  # (C, T, V) = (11, 12, 120)
+        print('now_feature shape in xin_feeder_baidu', now_feature.shape)
         now_mean_xy = self.all_mean_xy[idx].copy()  # (2,) = (x, y)
+        print('now_mean_xy shape in xin_feeder_baidu', now_mean_xy.shape)
 
         # if self.train_val_test.lower() == 'train' and np.random.random() > 0.5:
         #     angle = 2 * np.pi * np.random.random()
@@ -87,6 +81,9 @@ class DataSet(torch.utils.data.Dataset):
         #     now_feature[3:5, :, :] = xy  # (2,T, V_valid)=(2,12, n(<120))
 
         now_adjacency = self.graph.get_adjacency(self.all_adjacency[idx])  ##self.all_adjacency[idx]=(120,120)
+        print(f"now_adjacency shape in xin_feeder_baidu: {now_adjacency.shape}")
         now_A = self.graph.normalize_adjacency(now_adjacency)
+        print(f"now_A shape in xin_feeder_baidu: {now_A.shape}")
         now_A_biggraph = self.all_adjacency_biggraph[idx]  # new
+        print(f"now_A_biggraph shape in xin_feeder_baidu: {now_A_biggraph.shape}")
         return now_feature, now_A, now_A_biggraph, now_mean_xy

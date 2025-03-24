@@ -28,8 +28,8 @@ parser.add_argument('--run_name', type=str, default='', help='Run name.')
 parser.add_argument('--work_dir', type=str, default='./trained_models', help='Directory to save trained models.')
 parser.add_argument('--traindata_path', type=str, default='./train_data.pkl', help='Path to training data.')
 parser.add_argument('--log_file', type=str, default='log_test.txt', help='Log file name.')
-parser.add_argument('--batch_size_train', type=int, default=256, help='Batch size for training.')
-parser.add_argument('--batch_size_val', type=int, default=128, help='Batch size for validation.')
+parser.add_argument('--batch_size_train', type=int, default=16, help='Batch size for training.')
+parser.add_argument('--batch_size_val', type=int, default=16, help='Batch size for validation.')
 parser.add_argument('--batch_size_test', type=int, default=1, help='Batch size for testing.')
 
 args = parser.parse_args()
@@ -155,15 +155,16 @@ def my_load_model(pra_model, pra_path):
 
 def data_loader(pra_path, pra_batch_size=128, pra_shuffle=False, pra_drop_last=False, train_val_test='train'):
     dataset = DataSet(data_path=pra_path, graph_args=graph_args, train_val_test=train_val_test)
-    # print('pra_path:', pra_path)
-    # print('pra_batch_size:', pra_batch_size)
-    # print('len(dataset):', len(dataset))
+    print('pra_path:', pra_path)
+    print('pra_batch_size:', pra_batch_size)
+    print('len(dataset):', len(dataset))
     loader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=pra_batch_size,
         shuffle=pra_shuffle,
         drop_last=pra_drop_last,
-        num_workers=10,
+        num_workers=os.cpu_count(),
+        # pin_memory=True
     )
     return loader
 
@@ -212,11 +213,13 @@ def compute_RMSE(pra_pred, pra_GT, pra_mask, pra_error_order=2):
 def train_model(pra_model: Model, pra_data_loader, pra_optimizer, pra_epoch_log):
     # pra_model.to(dev)
 
+    print("train start")
     pra_model.train()
+    print("train end")
     rescale_xy = torch.ones((1, 2, 1, 1)).to(dev)
     rescale_xy[:, 0] = max_x
     rescale_xy[:, 1] = max_y
-
+    print("start iter")
     # train model using training data
     for iteration, (ori_data, A, A_big, _) in enumerate(pra_data_loader):
         print(iteration, ori_data.shape, A.shape)
@@ -345,17 +348,21 @@ def val_model(pra_model: Model, pra_data_loader):
             pred = predicted * car_mask  # (N, C, T, V)=(N, 2, 6, 120)
             hist = no_norm_loc_data[:, :2, :now_history_frames, :]
             GT = ori_output_loc_GT * car_mask  # (N, C, T, V)=(N, 2, 6, 120)
-            mask = ((pred[:, 0, :, :] == 0) & (pred[:, 1, :, :] == 0))  #  | (1, 6, 120)
-            mask = mask | ((hist[:, 0, :, :] == 0) & (hist[:, 1, :, :] == 0))
-            mask = mask.any(dim=1)  # 在时间维度 (dim=1) 上检查是否**有任何**时间步 x, y = 0，形状 (1, 120)
-            filtered_pred = pred[:, :, :, ~mask.squeeze()]
-            filtered_GT = GT[:, :, :, ~mask.squeeze()]
-            filtered_hist = hist[:, :, :, ~mask.squeeze()]
-            for i in range(filtered_pred.shape[0]):
+
+            for i in range(pred.shape[0]):
+                mask = ((pred[i, 0, :, :] == 0) & (pred[i, 1, :, :] == 0))  # | (N, 6, 120)
+                print('mask shape1:', mask.shape)  # (6, 120)
+                mask = mask | ((hist[i, 0, :, :] == 0) & (hist[i, 1, :, :] == 0))
+                print('mask shape2:', mask.shape)  # (6, 120)
+                mask = mask.any(dim=0)  # 在时间维度 (dim=1) 上检查是否**有任何**时间步 x, y = 0，形状 (N, 120)
+                print('mask shape3:', mask.shape)  # (120)
+                filtered_pred = pred[i, :, :, ~mask.squeeze()]
+                filtered_GT = GT[i, :, :, ~mask.squeeze()]
+                filtered_hist = hist[i, :, :, ~mask.squeeze()]
                 data = {
-                    'pred': filtered_pred[i].detach().cpu().tolist(),
-                    'GT': filtered_GT[i].detach().cpu().tolist(),
-                    'hist': filtered_hist[i].detach().cpu().tolist()
+                    'pred': filtered_pred.detach().cpu().tolist(),
+                    'GT': filtered_GT.detach().cpu().tolist(),
+                    'hist': filtered_hist.detach().cpu().tolist()
                 }
 
             with open('log/pred.jsonl', 'a') as f:
@@ -530,10 +537,9 @@ if __name__ == '__main__':
         seq2seq_method=args.seq2seq_method  # 'gru', 'lstm', 'none'
     )
     model.to(dev)
-
     # train and evaluate model
-    # logger.info('Start training and evaluating model...')
-    # run_trainval(model, pra_traindata_path=args.traindata_path, pra_testdata_path='test_data.pkl')
+    logger.info('Start training and evaluating model...')
+    run_trainval(model, pra_traindata_path=args.traindata_path, pra_testdata_path='test_data.pkl')
 
     if args.debug:
         pretrained_model_path = os.path.join(args.work_dir, 'model_epoch_0002.pt')
